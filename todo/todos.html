@@ -1,0 +1,176 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+	<title>todo</title>
+	<link rel="stylesheet" href="index.css">
+</head>
+<body>
+	<section id="todoapp">
+			<header id="header">
+				<h1>todos</h1>
+				<input id="new-todo" placeholder="What needs to be done?">
+			</header>
+			<section id="main">
+				<input type="checkbox" id="toggle-all">
+				<label for="toggle-all"></label>
+				<ul id="todo-list">
+				</ul>
+			</section>
+			<footer id="footer">
+				<span id="todo-count"><strong></strong> item left</span>
+				<ul id="filters">
+					<li><a href="#" class="selected">All</a></li>
+					<li><a href="#">Active</a></li>
+					<li><a href="#">Completed</a></li>
+				</ul>
+				<button id="clear-completed">Clear completed</button>
+			</footer>
+	</section>
+	<footer id="info">
+			<p>Double-click to edit a todo</p>
+			<p>Created by 
+				<a href="http://sindresorhus.com">Sindre Sorhus</a>
+			</p>
+			<p>Part of 
+				<a href="http://todomvc.com">TodoMVC</a>
+			</p>
+	</footer>	
+<script src="./jquery-1.12.0.js"></script>
+<script>
+	var todos=[];
+	if(localStorage.todos){
+		todos=$.parseJSON(localStorage.todos);
+		render()
+	}else{
+		$.get({
+			url:'/php/getTodo.php',
+			dataType:"json"
+		}).done(function(data){
+			todos=data;
+			render();
+		})
+	}
+	var state=localStorage.state ||'all';
+	function render(){
+		var length=todos.length;
+		$('#footer').find('strong').html(length);
+		var ftodos=$.grep(todos,function(v){
+			if(state === "all"){
+				$(this).addClass('selected')
+				return v; 
+			}else if(state ==="active"){
+				$(this).addClass('selected')
+				return v.isDone;
+			}else if(state === "completed"){
+				$(this).addClass('selected')
+				return !v.isDone;
+			}
+
+		})
+		$('#todo-list').empty().append(function(){
+			return $.map(todos,function(v){
+				var tmp=v.isDone==='1'?'checked':'';
+				return '<li data-id="'+v.id+'" class="'+(v.isDone==='1'?'completed':'')+'"><div class="view"><input type="checkbox" '+tmp+' class="toggle"><label>'+v.title+'</label><button class="destroy"></button></div><input class="edit" value="'+v.title+'"></li>'
+			})
+		})
+	}
+	render();
+
+	var saveData=function(){
+		localStorage.todos=JSON.stringify(todos);
+	}
+///////////////////增///////////////
+	var handler=function(e){
+		var a=$.trim($('#new-todo').val());
+		if(e.keyCode===13 && a !==""){
+			var _d={
+				id:todos.length? (Math.max.apply(null,$.map(todos,function(v){
+				        return v.id;
+	 		            }))+1 + ''):'1',
+                title:a,
+                isDone:'0'};
+			todos.push(_d);
+			$('#new-todo').val("")
+			saveData()
+			$.get({
+				url:'/php/addTodo.php',
+				data:_d
+			}).done(function(){
+			}).fail(function(){
+			})
+			render()
+		}
+	}
+
+	$('#new-todo').on('keydown',handler)
+	
+///////////////删/////////////////
+	var deleHandler=function(e){
+		var id=$(this).closest('li').attr("data-id");
+		todos=$.grep(todos,function(v){
+			return v.id !== id;
+		})
+		saveData()
+		$.get({
+				url:'/php/deleteTodo.php',
+				data:{id:id}
+			}).done(function(){
+			}).fail(function(){				
+			})
+		render()
+	}
+
+	/////////////////////////改//////////////
+   ///////////改状态/////////////
+   var gaistate=function(e){
+   	var state=$(this).prop('checked')
+   		var id=$(this).closest('li').attr('data-id');
+   		$.each(todos,function(i,v){
+   			if(v.id===id){
+   				v.isDone=state;
+   			}
+   		})
+   		saveData()
+   		render()
+   }
+   ////////////改内容////////////////
+   var xiugaishuju=function(e){
+   	console.log(1)
+   	var self=this
+  		var id=$(this).closest('li').attr('data-id');
+  		$.each(todos,function(i,v){
+  			if(v.id===id){
+  				v.title=$(self).val()
+  			}
+  		})
+  		saveData()
+  		$.get({
+				url:'/php/updateTodo.php',
+				data:{id:id,content:value}
+			}).done(function(){
+
+			}).fail(function(){
+				
+			})
+  		render()
+   }
+	$('#todo-list').on("click",'.destroy',deleHandler);
+	$('#todo-list').on("click",'.toggle',gaistate)
+	$('#todo-list').on('change','.edit',xiugaishuju)
+	$('#todo-list').on('focusout','li',function(){
+		$(this).removeClass('editing')
+	})
+	$('#todo-list').on('dblclick','li',function(){
+		$(this).addClass('editing')
+	})
+	$('#filters a').on('click',function(){
+		$('#filters .selected').removeClass('selected');
+		$(this).addClass('selected');
+		state=localStorage.state=$(this).attr('data-role');
+		render();
+		return false;
+	})
+</script>	
+</body>
+</html>
